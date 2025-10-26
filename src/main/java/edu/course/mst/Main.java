@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -13,7 +14,20 @@ public class Main {
     public static void main(String[] args) throws Exception {
         String inputPath = "input/graphs.json";
         if (args.length > 0) inputPath = args[0];
-        String input = new String(Files.readAllBytes(Paths.get(inputPath)));
+
+        File inputFile = new File(inputPath);
+        if (!inputFile.exists()) {
+            // Try one level deeper if run from parent folder
+            inputFile = new File("Assignment-3-main/input/graphs.json");
+        }
+
+        if (!inputFile.exists()) {
+            System.err.println("❌ Input file not found: " + inputFile.getAbsolutePath());
+            return;
+        }
+
+        String input = new String(Files.readAllBytes(inputFile.toPath()));
+
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         JsonObject root = gson.fromJson(input, JsonObject.class);
         JsonArray graphs = root.getAsJsonArray("graphs");
@@ -68,12 +82,22 @@ public class Main {
         }
 
         resultsRoot.add("results", resultsArr);
-        // write results to file
-        Files.createDirectories(Paths.get("output"));
-        try (FileWriter fw = new FileWriter("output/results.json")) {
-            gson.toJson(resultsRoot, fw);
+
+        // ✅ Automatically create output folder and write results.json
+        try {
+            Path outputDir = Paths.get("output");
+            if (!Files.exists(outputDir)) {
+                Files.createDirectories(outputDir);
+            }
+
+            Path outputFile = outputDir.resolve("results.json");
+            Files.write(outputFile, gson.toJson(resultsRoot).getBytes());
+
+            System.out.println("✅ Results successfully saved to: " + outputFile.toAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("❌ Error writing results file: " + e.getMessage());
+            e.printStackTrace();
         }
-        System.out.println("Results written to output/results.json");
     }
 
     private static void printGraphResults(int id, Graph graph, Prim.Result primRes, Kruskal.Result krRes) {
